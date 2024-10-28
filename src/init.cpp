@@ -643,7 +643,8 @@ void SetupServerArgs(ArgsManager& argsman)
     argsman.AddArg("-ct_exponent", strprintf("The hiding exponent. (default: %s)", 0), ArgsManager::ALLOW_ANY, OptionsCategory::CHAINPARAMS);
     argsman.AddArg("-con_any_asset_fees", "Enable transaction fees to be paid with any asset (default: false)", ArgsManager::ALLOW_ANY, OptionsCategory::ELEMENTS);
     argsman.AddArg("-initialexchangeratesjsonfile=<file>", strprintf("Specify path to read-only configuration file with asset valuations. Only used when con_any_asset_fees is enabled. Relative paths will be prefixed by datadir location. (default: %s)", "exchangerates.json"), ArgsManager::ALLOW_ANY, OptionsCategory::ELEMENTS);
-
+    argsman.AddArg("-acceptdiscountct", "Accept discounted fees for Confidential Transactions (default: false)", ArgsManager::ALLOW_ANY, OptionsCategory::CHAINPARAMS);
+    argsman.AddArg("-creatediscountct", "Create Confidential Transactions with discounted fees (default: false). Setting this to true will also set 'acceptdiscountct' to true.", ArgsManager::ALLOW_ANY, OptionsCategory::CHAINPARAMS);
 
 #if defined(USE_SYSCALL_SANDBOX)
     argsman.AddArg("-sandbox=<mode>", "Use the experimental syscall sandbox in the specified mode (-sandbox=log-and-abort or -sandbox=abort). Allow only expected syscalls to be used by bitcoind. Note that this is an experimental new feature that may cause bitcoind to exit or crash unexpectedly: use with caution. In the \"log-and-abort\" mode the invocation of an unexpected syscall results in a debug handler being invoked which will log the incident and terminate the program (without executing the unexpected syscall). In the \"abort\" mode the invocation of an unexpected syscall results in the entire process being killed immediately by the kernel without executing the unexpected syscall.", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
@@ -1013,13 +1014,13 @@ bool AppInitParameterInteraction(const ArgsManager& args)
     }
 
     if (args.GetBoolArg("-trim_headers", false)) {
-        LogPrintf("Configured for header-trimming mode. This will reduce memory usage substantially, but we will be unable to serve as a full P2P peer, and certain header fields may be missing from JSON RPC output.\n");
+        LogPrintf("Configured for header-trimming mode. This will reduce memory usage substantially, but will increase IO usage when the headers need to be temporarily untrimmed.\n");
         node::fTrimHeaders = true;
         // This calculation is driven by GetValidFedpegScripts in pegins.cpp, which walks the chain
         //   back to current epoch start, and then an additional total_valid_epochs on top of that.
         //   We add one epoch here for the current partial epoch, and then another one for good luck.
 
-        node::nMustKeepFullHeaders = (chainparams.GetConsensus().total_valid_epochs + 2) * epoch_length;
+        node::nMustKeepFullHeaders = chainparams.GetConsensus().total_valid_epochs * epoch_length;
         // This is the number of headers we can have in flight downloading at a time, beyond the
         //   set of blocks we've already validated. Capping this is necessary to keep memory usage
         //   bounded during IBD.
@@ -1245,6 +1246,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     const ArgsManager& args = *Assert(node.args);
     const CChainParams& chainparams = Params();
 
+    CBlockIndex::SetNodeContext(&node);
     auto opt_max_upload = ParseByteUnits(args.GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET), ByteUnit::M);
     if (!opt_max_upload) {
         return InitError(strprintf(_("Unable to parse -maxuploadtarget: '%s'"), args.GetArg("-maxuploadtarget", "")));
@@ -1737,7 +1739,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     // if pruning, unset the service bit and perform the initial blockstore prune
     // after any wallet rescanning has taken place.
-    if (fPruneMode || node::fTrimHeaders) {
+    if (fPruneMode) {
         LogPrintf("Unsetting NODE_NETWORK on prune mode\n");
         nLocalServices = ServiceFlags(nLocalServices & ~NODE_NETWORK);
         if (!fReindex) {
@@ -1747,11 +1749,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                 chainstate->PruneAndFlush();
             }
         }
-    }
-
-    if (node::fTrimHeaders) {
-        LogPrintf("Unsetting NODE_NETWORK_LIMITED on header trim mode\n");
-        nLocalServices = ServiceFlags(nLocalServices & ~NODE_NETWORK_LIMITED);
     }
 
     // ********************************************************* Step 11: import blocks
