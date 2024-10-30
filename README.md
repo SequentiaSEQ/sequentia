@@ -1,11 +1,13 @@
-# Sequentia Project blockchain platform
+# Sequentia project blockchain platform
 Sequentia is a Bitcoin sidechain dedicated to asset tokenization and decentralized exchanges.
 
-https://sequentia.io/
+https://www.sequentia.io/
 
-Current code is based on Elements Version: 23.2.1
+Current code is based on Elements Version: 23.2.4
 
-## Installing Prerequisistes
+# Quick build - Linux
+
+## Installing prerequisistes
 
 ### Install build tools
 On Ubuntu (and probably Debian), you should be able to install the prerequisite
@@ -24,7 +26,7 @@ echo 'export PATH="/usr/lib/ccache:$PATH"' | tee -a ~/.bashrc
 source ~/.bashrc
 ```
 
-## Configure and Build
+## Configure and build
 
 ### Prepare configuration
 
@@ -32,6 +34,10 @@ source ~/.bashrc
 ./autogen.sh
 make -j$(nproc) -C depends NO_QT=1 NO_NATPMP=1 NO_UPNP=1 NO_ZMQ=1 NO_USDT=1
 export CONFIG_SITE=$PWD/depends/x86_64-pc-linux-gnu/share/config.site NOWARN_CXXFLAGS='-Wno-deprecated -Wno-unused-result'
+```
+#### NOTE: For building Sequentia with clang use:
+```bash
+export CONFIG_SITE=$PWD/depends/x86_64-pc-linux-gnu/share/config.site NOWARN_CXXFLAGS='-Wno-deprecated -Wno-unused-result' CC=clang CXX=clang++
 ```
 
 ### Configure
@@ -43,10 +49,20 @@ Note that the `--enable-any-asset-fees` flag is an addition by Sequentia,
 that will configure RPC documentation to denominate fee rates
 using RFU and rfa instead of BTC and sat.
 
-### Last But Not Least, Build
+### Last but not least - Build
 ```bash
 make -j$(nproc)
 ```
+
+## Run the node
+Currently Sequentia supports only testnet, but you can also run the node as a custom Elements chain and create your network.
+
+* Testnet mode: `elementsd -chain=test` (syncs with Sequentia testnet)
+* Custom chain: `elementsd -chain=<your_chain_name>`
+
+
+
+# Elements info
 
 ## Modes
 Elements supports a few different pre-set chains for syncing.
