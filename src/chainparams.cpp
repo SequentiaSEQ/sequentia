@@ -226,6 +226,7 @@ public:
         consensus.has_parent_chain = false;
         g_signed_blocks = false;
         g_con_elementsmode = false;
+        g_con_any_asset_fees = false;
         g_con_blockheightinheader = false;
         consensus.total_valid_epochs = 0;
         consensus.elements_mode = g_con_elementsmode;
@@ -535,6 +536,7 @@ public:
         consensus.has_parent_chain = false;
         g_signed_blocks = false; // lol
         g_con_elementsmode = false;
+        g_con_any_asset_fees = false;
         g_con_blockheightinheader = false;
         consensus.total_valid_epochs = 0;
         consensus.elements_mode = g_con_elementsmode;
@@ -867,6 +869,7 @@ protected:
         // Default to true for custom chains.
         g_con_blockheightinheader = args.GetBoolArg("-con_blockheightinheader", true);
         g_con_elementsmode = args.GetBoolArg("-con_elementsmode", true);
+        g_con_any_asset_fees = args.GetBoolArg("-con_any_asset_fees", false);
         consensus.elements_mode = g_con_elementsmode;
 
         // No subsidy for custom chains by default
