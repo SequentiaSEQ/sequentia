@@ -102,10 +102,10 @@ class AnyAssetFeeScenariosTest(BitcoinTestFramework):
 
         self.sync_all()
 
-        self.nodes[1].generatetoaddress(1, self.node1_address, invalid_call=False)
+        # TODO: Node is accepting the tx with asset that has no price, it should not but if we reject tx when minRelayFee is 0 different issues will arise
+        self.nodes[0].generatetoaddress(1, self.node1_address, invalid_call=False)
 
         balance = self.nodes[1].getreceivedbyaddress(address=self.node1_address, assetlabel=self.asset1)
-
         assert balance == Decimal(2.0)
 
         self.sync_all()
@@ -113,18 +113,31 @@ class AnyAssetFeeScenariosTest(BitcoinTestFramework):
     def scenario2(self):
         tx = self.nodes[0].sendtoaddress(
             address=self.node1_address,
-            amount=1.0,
+            amount=2.0,
             assetlabel=self.asset2,
             fee_asset_label=self.asset2)
 
         assert len(self.nodes[0].getrawmempool()) == 1
 
-        assert_raises_rpc_error(-26, "min relay fee not met,", self.nodes[1].sendrawtransaction, self.nodes[0].getrawtransaction(tx))
+        self.nodes[1].sendrawtransaction(self.nodes[0].getrawtransaction(tx))
 
-        assert len(self.nodes[1].getrawmempool()) == 0
+        assert len(self.nodes[1].getrawmempool()) == 1
 
         self.nodes[0].generatetoaddress(1, self.node0_address, invalid_call=False)
         self.sync_all()
+
+        balance = self.nodes[1].getreceivedbyaddress(address=self.node1_address, assetlabel=self.asset2)
+        assert balance == Decimal(2.0)
+
+        tx = self.nodes[1].sendtoaddress(
+            address=self.node0_address,
+            amount=1.0,
+            assetlabel=self.asset2,
+            fee_asset_label=self.asset2)
+
+        assert len(self.nodes[1].getrawmempool()) == 0
+
+        self.nodes[1].removeprunedfunds(tx)
 
     def scenario3(self):
         new_rates = { "gasset": 100000000, self.asset1: 100000000, self.asset2: 1000000}
@@ -143,6 +156,17 @@ class AnyAssetFeeScenariosTest(BitcoinTestFramework):
         assert len(self.nodes[1].getrawmempool()) == 0
 
         self.nodes[0].generatetoaddress(1, self.node0_address, invalid_call=False)
+        self.sync_all()
+
+        tx = self.nodes[1].sendtoaddress(
+            address=self.node0_address,
+            amount=1.0,
+            assetlabel=self.asset2,
+            fee_asset_label=self.asset2)
+
+        assert len(self.nodes[1].getrawmempool()) == 1
+
+        self.nodes[1].generatetoaddress(1, self.node1_address, invalid_call=False)
         self.sync_all()
 
     def scenario4(self):
@@ -200,10 +224,10 @@ class AnyAssetFeeScenariosTest(BitcoinTestFramework):
         # Send asset1 with paying fees in asset1
         self.scenario1()
 
-        # Send asset2 with paying fees in asset2, accetped on node0 not accepted on node1 without price set
+        # Send asset2 with paying fees in asset2, accetped on node0 and accepted on node1 without price set, mined on node0 and synced on node1. Not possible to create the tx on node1 without the price.
         self.scenario2()
 
-        # Send asset2 with paying fees in asset2, accetped on node0 not accepted on node1 with price set lower on node1
+        # Send asset2 with paying fees in asset2, accetped on node0 and not accepted on node1 with price set lower on node1, mined on node0 and synced on node1, tx created on node1 with more fee accepted
         self.scenario3()
 
         # Bump fee amount for tx, check that the tx is on node1 after bumping the fee

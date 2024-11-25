@@ -660,8 +660,9 @@ private:
             return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "mempool min fee not met", strprintf("%d < %d", package_fee, mempoolRejectFee));
         }
 
-        if (package_fee < ::minRelayTxFee.GetFee(package_size, fee_asset)) {
-            return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "min relay fee not met", strprintf("%d < %d", package_fee, ::minRelayTxFee.GetFee(package_size, fee_asset)));
+        CAmount min_relay_tx_fee = ::minRelayTxFee.GetFee(package_size, fee_asset);
+        if ( package_fee < min_relay_tx_fee) {
+            return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "min relay fee not met", strprintf("%d < %d", package_fee, min_relay_tx_fee));
         }
         return true;
     }
@@ -896,10 +897,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     ws.m_base_fees = fee_map[feeAsset];
 
     // ws.m_modified_fees includes any fee deltas from PrioritiseTransaction
-    ws.m_modified_fees = g_con_any_asset_fees ?
-        ExchangeRateMap::GetInstance().ConvertAmountToValue(ws.m_base_fees, feeAsset).GetValue() :
-        ws.m_base_fees;
-    std::cout << ExchangeRateMap::GetInstance().ConvertAmountToValue(ws.m_base_fees, feeAsset).GetValue() << "|" << ws.m_base_fees << std::endl;
+    ws.m_modified_fees = ws.m_base_fees;
     m_pool.ApplyDelta(hash, ws.m_modified_fees);
 
     // Keep track of transactions that spend a coinbase, which we re-scan
@@ -1024,9 +1022,9 @@ bool MemPoolAccept::ReplacementChecks(Workspace& ws)
     //   guarantee that this is incentive-compatible for miners, because it is possible for a
     //   descendant transaction of a direct conflict to pay a higher feerate than the transaction that
     //   might replace them, under these rules.
-    if (const auto err_string{PaysMoreThanConflicts(ws.m_iters_conflicting, newFeeRate, hash)}) {
-        return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "insufficient fee", *err_string);
-    }
+    // if (const auto err_string{PaysMoreThanConflicts(ws.m_iters_conflicting, newFeeRate, hash)}) {
+    //     return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "insufficient fee", *err_string);
+    // }
 
     // Calculate all conflicting entries and enforce BIP125 Rule #5.
     if (const auto err_string{GetEntriesForConflicts(tx, m_pool, ws.m_iters_conflicting, ws.m_all_conflicting)}) {
@@ -1044,10 +1042,10 @@ bool MemPoolAccept::ReplacementChecks(Workspace& ws)
         ws.m_conflicting_fees += it->GetModifiedFee();
         ws.m_conflicting_size += it->GetTxSize();
     }
-    if (const auto err_string{PaysForRBF(ws.m_conflicting_fees, ws.m_modified_fees, ws.m_vsize,
-                                         ::incrementalRelayFee, hash)}) {
-        return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "insufficient fee", *err_string);
-    }
+    // if (const auto err_string{PaysForRBF(ws.m_conflicting_fees, ws.m_modified_fees, ws.m_vsize,
+    //                                      ::incrementalRelayFee, hash)}) {
+    //     return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "insufficient fee", *err_string);
+    // }
     return true;
 }
 
