@@ -210,9 +210,9 @@ class AnyAssetFeeScenariosTest(BitcoinTestFramework):
         self.sync_all()
 
         assert self.nodes[0].getrawmempool(True)[tx1]['fees']['asset'] == self.asset1
-        assert self.nodes[0].getrawmempool(True)[tx1]['fees']['base'] == Decimal('0.00009801')
+        assert self.nodes[0].getrawmempool(True)[tx1]['fees']['base'] == Decimal('0.00007841')
         assert self.nodes[1].getrawmempool(True)[tx1]['fees']['asset'] == self.asset1
-        assert self.nodes[1].getrawmempool(True)[tx1]['fees']['base'] == Decimal('0.00009801')
+        assert self.nodes[1].getrawmempool(True)[tx1]['fees']['base'] == Decimal('0.00007841')
 
         self.nodes[0].generatetoaddress(1, self.node0_address, invalid_call=False)
         self.sync_all()
