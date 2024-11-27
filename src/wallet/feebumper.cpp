@@ -120,7 +120,7 @@ static feebumper::Result CheckFeeRate(const CWallet& wallet, const CWalletTx& wt
     return feebumper::Result::OK;
 }
 
-static CFeeRate EstimateFeeRate(const CWallet& wallet, const CWalletTx& wtx, const CAmount old_fee, const CCoinControl& coin_control)
+static CFeeRate EstimateFeeRate(const CWallet& wallet, const CWalletTx& wtx, const CAmount old_fee, const CCoinControl& coin_control, bool only_replace_fee_asset = false)
 {
     // Get the fee rate of the original transaction. This is calculated from
     // the tx fee/vsize, so it may have been rounded down. Add 1 satoshi to the
@@ -136,10 +136,11 @@ static CFeeRate EstimateFeeRate(const CWallet& wallet, const CWalletTx& wtx, con
     // aware of. This ensures we're over the required relay fee rate
     // (BIP 125 rule 4).  The replacement tx will be at least as large as the
     // original tx, so the total fee will be greater (BIP 125 rule 3)
-    CFeeRate node_incremental_relay_fee = wallet.chain().relayIncrementalFee();
-    CFeeRate wallet_incremental_relay_fee = CFeeRate(WALLET_INCREMENTAL_RELAY_FEE);
-    feerate += std::max(node_incremental_relay_fee, wallet_incremental_relay_fee);
-
+    if (!only_replace_fee_asset) {
+        CFeeRate node_incremental_relay_fee = wallet.chain().relayIncrementalFee();
+        CFeeRate wallet_incremental_relay_fee = CFeeRate(WALLET_INCREMENTAL_RELAY_FEE);
+        feerate += std::max(node_incremental_relay_fee, wallet_incremental_relay_fee);
+    }
     // Fee rate must also be at least the wallet's GetMinimumFeeRate
     CFeeRate min_feerate(GetMinimumFeeRate(wallet, coin_control, /* feeCalc */ nullptr));
 
@@ -236,7 +237,7 @@ Result CreateRateBumpTransaction(CWallet& wallet, const uint256& txid, const CCo
         // The user did not provide a feeRate argument
         if (g_con_any_asset_fees) {
             CValue old_fee_value = ExchangeRateMap::GetInstance().ConvertAmountToValue(old_fee, old_fee_asset);
-            new_coin_control.m_feerate = EstimateFeeRate(wallet, wtx, old_fee_value.GetValue(), new_coin_control);
+            new_coin_control.m_feerate = EstimateFeeRate(wallet, wtx, old_fee_value.GetValue(), new_coin_control, old_fee_asset != fee_asset);
         } else {
             new_coin_control.m_feerate = EstimateFeeRate(wallet, wtx, old_fee, new_coin_control);
         }
