@@ -828,7 +828,7 @@ static void resetBlindDetails(BlindDetails* det, bool preserve_output_data = fal
         det->num_to_blind = 0;
         det->change_to_blind = 0;
         det->only_recipient_blind_index = -1;
-        det->only_change_pos = -1;
+        det->only_change_pos.clear();
     }
 }
 
@@ -881,11 +881,12 @@ static bool fillBlindDetails(BlindDetails* det, CWallet* wallet, CMutableTransac
             if (det->ignore_blind_failure) {
                 det->num_to_blind--;
                 det->change_to_blind--;
-                txNew.vout[det->only_change_pos].nNonce.SetNull();
-                det->o_pubkeys[det->only_change_pos] = CPubKey();
-                det->o_amount_blinds[det->only_change_pos] = uint256();
-                det->o_asset_blinds[det->only_change_pos] = uint256();
-                wallet->WalletLogPrintf("Unblinding change at index %d due to lack of inputs and other outputs being blinded.\n", det->only_change_pos);
+                auto pos = *det->only_change_pos.begin();
+                txNew.vout[pos].nNonce.SetNull();
+                det->o_pubkeys[pos] = CPubKey();
+                det->o_amount_blinds[pos] = uint256();
+                det->o_asset_blinds[pos] = uint256();
+                wallet->WalletLogPrintf("Unblinding change at index %d due to lack of inputs and other outputs being blinded.\n", pos);
             } else {
                 error = _("Change output could not be blinded as there are no blinded inputs and no other blinded outputs.");
                 return false;
@@ -903,6 +904,26 @@ static bool fillBlindDetails(BlindDetails* det, CWallet* wallet, CMutableTransac
                 wallet->WalletLogPrintf("Unblinding single blinded output at index %d due to lack of inputs and other outputs being blinded.\n", det->only_recipient_blind_index);
             } else {
                 error = _("Transaction output could not be blinded as there are no blinded inputs and no other blinded outputs.");
+                return false;
+            }
+        }
+    } else if (num_inputs_blinded == 0 && det->num_to_blind > 1 && det->num_to_blind == det->change_to_blind) {
+        if (det->change_to_blind > 0) {
+            // Unblind all changes
+            if (det->ignore_blind_failure) {
+                for (auto pos : det->only_change_pos) {
+                    det->num_to_blind--;
+                    det->change_to_blind--;
+
+                    txNew.vout[pos].nNonce.SetNull();
+                    det->o_pubkeys[pos] = CPubKey();
+                    det->o_amount_blinds[pos] = uint256();
+                    det->o_asset_blinds[pos] = uint256();
+                    wallet->WalletLogPrintf("Unblinding change at index %d due to lack of inputs and other outputs being blinded.\n", pos);
+                }
+                assert(det->num_to_blind == 0);
+            } else {
+                error = _("Change output could not be blinded as there are no blinded inputs and no other blinded outputs.");
                 return false;
             }
         }
@@ -1305,7 +1326,7 @@ static bool CreateTransactionInternal(
 
                 blind_details->num_to_blind++;
                 blind_details->change_to_blind++;
-                blind_details->only_change_pos = i;
+                blind_details->only_change_pos.insert(i);
                 // Place the blinding pubkey here in case of fundraw calls
                 newTxOut.nNonce.vchCommitment = std::vector<unsigned char>(blind_pub->begin(), blind_pub->end());
             } else {
