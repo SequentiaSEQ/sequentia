@@ -408,7 +408,7 @@ def main():
     parser.add_argument('--exclude', '-x', help='specify a comma-separated-list of scripts to exclude.')
     parser.add_argument('--extended', action='store_true', help='run the extended test suite in addition to the basic tests')
     parser.add_argument('--help', '-h', '-?', action='store_true', help='print help text and exit')
-    parser.add_argument('--jobs', '-j', type=int, default=4, help='how many test scripts to run in parallel. Default=4.')
+    parser.add_argument('--jobs', '-j', type=int, default=8, help='how many test scripts to run in parallel. Default=8.')
     parser.add_argument('--keepcache', '-k', action='store_true', help='the default behavior is to flush the cache directory on startup. --keepcache retains the cache from the previous testrun.')
     parser.add_argument('--quiet', '-q', action='store_true', help='only print dots, results summary and failure logs')
     parser.add_argument('--tmpdirprefix', '-t', default=tempfile.gettempdir(), help="Root directory for datadirs")
