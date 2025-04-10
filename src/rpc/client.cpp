@@ -207,6 +207,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     //
     // SEQUENTIA
     { "setfeeexchangerates", 0, "rates"},
+    { "createhtlc", 2, "timeout"},
     //
     // ELEMENTS:
     { "calcfastmerkleroot", 0, "leaves" },

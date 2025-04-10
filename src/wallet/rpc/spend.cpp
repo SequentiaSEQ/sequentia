@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <assetsdir.h>
+#include <base58.h>
 #include <consensus/validation.h>
 #include <core_io.h>
 #include <exchangerates.h>
@@ -306,7 +307,7 @@ RPCHelpMan sendmany()
                     },
                     {"ignoreblindfail", RPCArg::Type::BOOL, RPCArg::Default{true}, "Return a transaction even when a blinding attempt fails due to number of blinded inputs/outputs."},
                     {"fee_rate", RPCArg::Type::AMOUNT, RPCArg::DefaultHint{"not set, fall back to wallet fee estimation"}, "Specify a fee rate in " + CURRENCY_ATOM + "/vB."},
-                    {"fee_asset", RPCArg::Type::STR_HEX, RPCArg::DefaultHint{"not set, fall back to asset being sent"}, "label or hex ID of asset used for fees"},                    
+                    {"fee_asset", RPCArg::Type::STR_HEX, RPCArg::DefaultHint{"not set, fall back to asset being sent"}, "label or hex ID of asset used for fees"},
                     {"verbose", RPCArg::Type::BOOL, RPCArg::Default{false}, "If true, return extra information about the transaction."},
                 },
                 {
@@ -1801,4 +1802,153 @@ RPCHelpMan walletcreatefundedpsbt()
 },
     };
 }
+
+CPubKey PublickeyFromString(const std::string &pubkey)
+{
+    if (!IsHex(pubkey) || (pubkey.length() != 66 && pubkey.length() != 130))
+    {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid public key: " + pubkey);
+    }
+
+    return HexToPubKey(pubkey);
+}
+
+CScript GetScriptForHTLC(const CPubKey& seller, const CPubKey& refund, const std::vector<unsigned char> image, uint32_t timeout)
+{
+    CScript script;
+
+    script << OP_IF;
+    script << OP_SHA256 << image << OP_EQUALVERIFY << ToByteVector(seller);
+    script << OP_ELSE;
+
+    if (timeout <= 16)
+    {
+        script << CScript::EncodeOP_N(timeout);
+    }
+    else
+    {
+        script << CScriptNum(timeout);
+    }
+
+    script << OP_CHECKSEQUENCEVERIFY << OP_DROP << ToByteVector(refund);
+    script << OP_ENDIF;
+    script << OP_CHECKSIG;
+
+    return script;
+}
+
+CScript CreateScriptForHTLC(const JSONRPCRequest& request, uint32_t& blocks, std::vector<unsigned char>& image)
+{
+    CPubKey seller_key = PublickeyFromString(request.params[0].get_str());
+    CPubKey refund_key = PublickeyFromString(request.params[1].get_str());
+
+    {
+        UniValue timeout;
+        if (!timeout.read(std::string("[") + request.params[2].get_str() + std::string("]")) || !timeout.isArray() || timeout.size() != 1)
+        {
+            throw JSONRPCError(RPC_TYPE_ERROR, "Error parsing JSON: " + request.params[3].get_str());
+        }
+
+        blocks = timeout[0].get_int();
+    }
+
+    if (blocks >= CTxIn::SEQUENCE_LOCKTIME_TYPE_FLAG)
+    {
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid block denominated relative timeout");
+    }
+
+    return GetScriptForHTLC(seller_key, refund_key, image, blocks);
+}
+
+RPCHelpMan createhtlc()
+{
+    return RPCHelpMan{"createhtlc",
+        "\nCreates a Sequentia HTLC whose funds can be unlocked with a seed or as a refund.\n"
+        "It returns a json object with the hex and seed if not provided.\n",
+        {
+            {"receiverPubkey", RPCArg::Type::STR, RPCArg::Optional::NO, "The public key of the possessor of the seed"},
+            {"ownerPubkey", RPCArg::Type::STR, RPCArg::Optional::NO, "The public key of the recipient of the refund"},
+            {"timeout", RPCArg::Type::NUM, RPCArg::Optional::NO, "Timeout of the contract (denominated in blocks) relative to its placement in the blockchain."},
+            {"seedhash", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "SHA256 hash of the seed. If none provided one will be generated"},
+        },
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::STR, "address", "The value of the new Sequentia address"},
+                {RPCResult::Type::STR_HEX, "hex", "The hex of the HTLC transaction"},
+                {RPCResult::Type::STR_HEX, "seedhash", "Hex-encoded seed hash"},
+                {RPCResult::Type::STR_HEX, "seed", /*optional=*/true, "Hex-encoded seed if no seed provided"},
+            },
+        },
+        RPCExamples{
+            HelpExampleCli("createhtlc", "028af0e1d6ff3bb43c8161eb73ff91759a83dea9b9cbce9b60f09c8cc5cf880d0d 02e6aaef17549e6a375d0dd305b618a2d58168caadc9fd5e59f2b2b84368f73adf 10")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        {
+            std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
+            if (!pwallet) return NullUniValue;
+
+            std::vector<unsigned char> hashBytes;
+            CKeyingMaterial seed;
+
+            // Seed hash provided
+            if (!request.params[3].isNull())
+            {
+                std::string hash = request.params[3].get_str();
+
+                if (IsHex(hash))
+                {
+                    hashBytes = ParseHex(hash);
+
+                    if (hashBytes.size() != 32)
+                    {
+                        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid hash image length, 32 (SHA256) accepted");
+                    }
+                }
+                else
+                {
+                    throw JSONRPCError(RPC_TYPE_ERROR, "Invalid hash image");
+                }
+            }
+            else // No seed hash provided, generate seed
+            {
+                hashBytes.resize(32);
+                seed.resize(32);
+                GetStrongRandBytes(seed.data(), seed.size());
+
+                CSHA256 hash;
+                hash.Write(seed.data(), seed.size());
+                hash.Finalize(hashBytes.data());
+            }
+
+            // Get HTLC script
+            uint32_t blocks;
+            CScript inner = CreateScriptForHTLC(request, blocks, hashBytes);
+
+            // Get destination
+            CScriptID innerID(inner);
+            ScriptHash scriptHash(innerID);
+
+            printf(" %x\n", Params().Base58Prefix(CChainParams::SCRIPT_ADDRESS)[0]);
+            std::cout << "Script: " << HexStr(inner) <<", Script hash: " << scriptHash.ToString() << std::endl;
+
+            // Create Bitcoin address
+            std::vector<unsigned char> data(21, Params().Base58Prefix(CChainParams::SCRIPT_ADDRESS)[0]);
+            memcpy(&data[1], &innerID, 20);
+
+            UniValue result(UniValue::VOBJ);
+            result.pushKV("scriptAddres", EncodeBase58Check(data));
+            result.pushKV("redeemScript", HexStr(inner));
+
+            if (!seed.empty())
+            {
+                result.pushKV("seed", HexStr(seed));
+                result.pushKV("seedhash", HexStr(hashBytes));
+            }
+
+            return result;
+        },
+    };
+}
+
 } // namespace wallet

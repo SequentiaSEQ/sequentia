@@ -641,6 +641,7 @@ RPCHelpMan send();
 RPCHelpMan walletprocesspsbt();
 RPCHelpMan walletcreatefundedpsbt();
 RPCHelpMan signrawtransactionwithwallet();
+RPCHelpMan createhtlc();
 
 // signmessage
 RPCHelpMan signmessage();
@@ -751,6 +752,8 @@ static const CRPCCommand commands[] =
     { "wallet",             &walletpassphrase,               },
     { "wallet",             &walletpassphrasechange,         },
     { "wallet",             &walletprocesspsbt,              },
+    // SEQUENTIA:
+    { "wallet",             &createhtlc,                     },
     // ELEMENTS:
     { "wallet",             &getpeginaddress,                },
     { "wallet",             &claimpegin,                     },
