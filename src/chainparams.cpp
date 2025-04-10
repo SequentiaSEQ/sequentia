@@ -428,8 +428,8 @@ public:
         base58Prefixes[EXT_PUBLIC_KEY] = {0x15, 0xE6, 0xD2, 0x6B};
         base58Prefixes[EXT_SECRET_KEY] = {0x33, 0x97, 0xC1, 0x9D};
 
-        bech32_hrp = "tsq";
-        blech32_hrp = "tsqb";
+        bech32_hrp = "tb";
+        blech32_hrp = bech32_hrp;
 
         vFixedSeeds = std::vector<uint8_t>(std::begin(chainparams_seed_test), std::end(chainparams_seed_test));
 
