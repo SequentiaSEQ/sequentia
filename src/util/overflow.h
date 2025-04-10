@@ -30,7 +30,7 @@ template <class T>
 }
 
 template <class T>
-[[nodiscard]] T SaturatingAdd(const T i, const T j) noexcept
+[[nodiscard]] T SaturatingAdd(T i, T j) noexcept
 {
     if constexpr (std::numeric_limits<T>::is_signed) {
         if (i > 0 && j > std::numeric_limits<T>::max() - i) {

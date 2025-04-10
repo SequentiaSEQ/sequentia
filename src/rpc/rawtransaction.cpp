@@ -1485,6 +1485,11 @@ static RPCHelpMan decodepsbt()
             } else {
                 out.pushKV("amountcommitment", txout.nValue.GetHex());
             }
+            if (txout.nAsset.IsExplicit()) {
+                out.pushKV("asset", txout.nAsset.GetAsset().GetHex());
+            } else {
+                out.pushKV("assetcommitment", txout.nAsset.GetHex());
+            }
             out.pushKV("scriptPubKey", o);
 
             in.pushKV("witness_utxo", out);
@@ -3068,7 +3073,7 @@ static RPCHelpMan rawissueasset()
         CAmount asset_amount = 0;
         const UniValue& asset_amount_uni = issuance_o["asset_amount"];
         if (asset_amount_uni.isNum()) {
-            asset_amount = AmountFromValue(asset_amount_uni);
+            asset_amount = AmountFromValue(asset_amount_uni, false);
             if (asset_amount <= 0) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, asset_amount must be positive");
             }
@@ -3085,7 +3090,7 @@ static RPCHelpMan rawissueasset()
         CAmount token_amount = 0;
         const UniValue& token_amount_uni = issuance_o["token_amount"];
         if (token_amount_uni.isNum()) {
-            token_amount = AmountFromValue(token_amount_uni);
+            token_amount = AmountFromValue(token_amount_uni, false);
             if (token_amount <= 0) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, token_amount must be positive");
             }
@@ -3203,7 +3208,7 @@ static RPCHelpMan rawreissueasset()
         CAmount asset_amount = 0;
         const UniValue& asset_amount_uni = issuance_o["asset_amount"];
         if (asset_amount_uni.isNum()) {
-            asset_amount = AmountFromValue(asset_amount_uni);
+            asset_amount = AmountFromValue(asset_amount_uni, false);
             if (asset_amount <= 0) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, asset_amount must be positive");
             }

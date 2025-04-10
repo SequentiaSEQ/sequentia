@@ -260,11 +260,11 @@ static void copyOutput(sigOutput* result, opcode** allocation, size_t* allocatio
 
 /* Tally a sorted list of feeOutputs
  *
- * Given a sorted array of feeOutput pointers, tally all the (explict) amounts of the entries with the same asset id,
+ * Given a sorted array of feeOutput pointers, tally all the (explicit) amounts of the entries with the same asset id,
  * which are all necessarily next to each other, into the assetFee field of the first entry of the bunch.
  *
  * Discard all entries other than the first one of each bunch.
- * Return 'ret_value', the number of remaning entries in the array after these discards.
+ * Return 'ret_value', the number of remaining entries in the array after these discards.
  *
  * Note: the array is not re-allocated, so there will be "junk" values in the array past the end of 'ret_value'.
  *
@@ -305,7 +305,8 @@ static uint_fast32_t sumFees(sigOutput** feeOutputs, uint_fast32_t numFees) {
 
   return result + 1;
 }
-/* Allocate and initialize a 'transaction' from a 'rawOutput', copying or hashing the data as needed.
+
+/* Allocate and initialize a 'transaction' from a 'rawTransaction', copying or hashing the data as needed.
  * Returns NULL if malloc fails (or if malloc cannot be called because we require an allocation larger than SIZE_MAX).
  *
  * Precondition: NULL != rawTx
@@ -496,7 +497,7 @@ extern transaction* simplicity_elements_mallocTransaction(const rawTransaction* 
     uint_fast32_t ix_fee = 0;
 
     /* perm is a temporary array the same length (numFees) and size as feeOutputs.
-     * perm is used to initalize feeOutputs and is not used afterward.
+     * perm is used to initialize feeOutputs and is not used afterward.
      * This makes it safe for perm to use the same memory allocation as feeOutputs.
      */
     static_assert(sizeof(const sha256_midstate*) == sizeof(sigOutput*), "Pointers (to structures) ought to have the same size.");
@@ -527,8 +528,8 @@ extern transaction* simplicity_elements_mallocTransaction(const rawTransaction* 
     /* Initialize the feeOutputs array from the perm array.
      * Because the perm array entries are the same size as the feeOutputs array entries, it is safe to initialize one by one.
      *
-     * In practical C implementations, the feeOutputs array entires are initalized to the same value as the perm array entries.
-     * In practical C implementations, this is a no-op, and generally compiliers are able to see this fact and eliminate this loop.
+     * In practical C implementations, the feeOutputs array entries are initialized to the same value as the perm array entries.
+     * In practical C implementations, this is a no-op, and generally compilers are able to see this fact and eliminate this loop.
      *
      * We keep the loop in the code just to be pedantic.
      */
@@ -566,6 +567,12 @@ extern transaction* simplicity_elements_mallocTransaction(const rawTransaction* 
   }
 
   return tx;
+}
+
+/* Free a pointer to 'transaction'.
+ */
+extern void simplicity_elements_freeTransaction(transaction* tx) {
+  simplicity_free(tx);
 }
 
 /* Allocate and initialize a 'tapEnv' from a 'rawTapEnv', copying or hashing the data as needed.
@@ -639,7 +646,13 @@ extern tapEnv* simplicity_elements_mallocTapEnv(const rawTapEnv* rawEnv) {
   return env;
 }
 
-/* Contstruct a txEnv structure from its components.
+/* Free a pointer to 'tapEnv'.
+ */
+extern void simplicity_elements_freeTapEnv(tapEnv* env) {
+  simplicity_free(env);
+}
+
+/* Construct a txEnv structure from its components.
  * This function will precompute any cached values.
  *
  * Precondition: NULL != tx

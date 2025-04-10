@@ -266,8 +266,9 @@ void AvailableCoins(const CWallet& wallet, std::vector<COutput> &vCoins, const C
             if (asset_filter && asset != *asset_filter) {
                 continue;
             }
-            if (outValue < nMinimumAmount || outValue > nMaximumAmount)
+            if (outValue < nMinimumAmount || (asset == Params().GetConsensus().pegged_asset && outValue > nMaximumAmount)) {
                 continue;
+            }
 
             if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs && !coinControl->IsSelected(COutPoint(entry.first, i)))
                 continue;
@@ -1470,6 +1471,8 @@ static bool CreateTransactionInternal(
             return false;
         }
         txNew = tx_blinded; // sigh, `fillBlindDetails` may have modified txNew
+        // Update the change position to the new tx
+        change_position = txNew.vout.begin() + nChangePosInOut;
 
         int ret = BlindTransaction(blind_details->i_amount_blinds, blind_details->i_asset_blinds, blind_details->i_assets, blind_details->i_amounts, blind_details->o_amount_blinds, blind_details->o_asset_blinds, blind_details->o_pubkeys, issuance_asset_keys, issuance_token_keys, tx_blinded);
         assert(ret != -1);

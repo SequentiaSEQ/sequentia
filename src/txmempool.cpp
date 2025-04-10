@@ -20,6 +20,7 @@
 #include <policy/settings.h>
 #include <policy/value.h>
 #include <reverse_iterator.h>
+#include <util/check.h>
 #include <util/moneystr.h>
 #include <util/system.h>
 #include <util/time.h>
@@ -62,25 +63,6 @@ struct update_ancestor_state
         int64_t discountSize;
 };
 
-struct update_fee_delta
-{
-    explicit update_fee_delta(int64_t _feeDelta) : feeDelta(_feeDelta) { }
-
-    void operator() (CTxMemPoolEntry &e) { e.UpdateFeeDelta(feeDelta); }
-
-private:
-    int64_t feeDelta;
-};
-
-struct update_fee_value
-{
-    explicit update_fee_value(CValue _feeValue) : feeValue(_feeValue) { }
-
-    void operator() (CTxMemPoolEntry &e) { e.UpdateFeeValue(feeValue); }
-
-private:
-    CValue feeValue;
-};
 
 bool TestLockPointValidity(CChain& active_chain, const LockPoints& lp)
 {
@@ -122,7 +104,7 @@ CTxMemPoolEntry::CTxMemPoolEntry(const CTransactionRef& tx, CAmount fee, CAsset 
       discountSizeWithAncestors{GetDiscountTxSize()},
       setPeginsSpent(_setPeginsSpent) {}
 
-void CTxMemPoolEntry::UpdateFeeDelta(int64_t newFeeDelta)
+void CTxMemPoolEntry::UpdateFeeDelta(CAmount newFeeDelta)
 {
     nModFeesWithDescendants += newFeeDelta - feeDelta;
     nModFeesWithAncestors += newFeeDelta - feeDelta;
@@ -540,8 +522,10 @@ void CTxMemPool::addUnchecked(const CTxMemPoolEntry &entry, setEntries &setAnces
     // into mapTx.
     CAmount delta{0};
     ApplyDelta(entry.GetTx().GetHash(), delta);
+    // The following call to UpdateFeeDelta assumes no previous fee modifications
+    Assume(entry.GetFee() == entry.GetModifiedFee());
     if (delta) {
-            mapTx.modify(newit, update_fee_delta(delta));
+        mapTx.modify(newit, [&delta](CTxMemPoolEntry& e) { e.UpdateFeeDelta(delta); });
     }
 
     // Update cachedInnerUsage to include contained transaction's usage.
@@ -1053,7 +1037,7 @@ void CTxMemPool::PrioritiseTransaction(const uint256& hash, const CAmount& nFeeD
         delta += nFeeDelta;
         txiter it = mapTx.find(hash);
         if (it != mapTx.end()) {
-            mapTx.modify(it, update_fee_delta(delta));
+            mapTx.modify(it, [&delta](CTxMemPoolEntry& e) { e.UpdateFeeDelta(delta); });
             // Now update all ancestors' modified fees with descendants
             setEntries setAncestors;
             uint64_t nNoLimit = std::numeric_limits<uint64_t>::max();
@@ -1101,7 +1085,7 @@ void CTxMemPool::RecomputeFees()
             CValue newFeeValue = exchangeRateMap.ConvertAmountToValue(tx.GetFee(), tx.GetFeeAsset());
             CValue feeValueDelta = newFeeValue - tx.GetFeeValue();
             if (feeValueDelta != 0) {
-                mapTx.modify(it, update_fee_value(newFeeValue));
+                mapTx.modify(it, [&newFeeValue](CTxMemPoolEntry& e) { e.UpdateFeeValue(newFeeValue); });
 
                 // Now update all ancestors' modified fees with descendants
                 setEntries setAncestors;
