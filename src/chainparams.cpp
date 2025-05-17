@@ -811,6 +811,7 @@ class CCustomParams : public CRegTestParams {
 protected:
     std::string default_magic_str = "5319F20E";
     std::string default_signblockscript = "51";
+    bool use_invalid_seeds = true;
     void UpdateFromArgs(const ArgsManager& args)
     {
         UpdateActivationParametersFromArgs(args);
@@ -878,7 +879,9 @@ protected:
         std::copy(begin(magic_byte), end(magic_byte), pchMessageStart);
 
         vSeeds.clear();
-        vSeeds.emplace_back("dummySeed.invalid.");
+        if (use_invalid_seeds) {
+            vSeeds.emplace_back("dummySeed.invalid.");
+        }
         if (args.IsArgSet("-seednode")) {
             const auto seednodes = args.GetArgs("-seednode");
             if (seednodes.size() != 1 || seednodes[0] != "0") {
@@ -1061,6 +1064,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_DYNA_FED].nStartTime = 0;
 
         nDefaultPort = 18891;
+        use_invalid_seeds = false;
         vSeeds.clear();
         vFixedSeeds = std::vector<uint8_t>(std::begin(pnSeed6_liquidtestnet), std::end(pnSeed6_liquidtestnet));
 
@@ -1075,6 +1079,7 @@ public:
         if (!args.IsArgSet("-seednode")) {
             vSeeds.emplace_back("seed.liquid-testnet.blockstream.com");
             vSeeds.emplace_back("seed.liquidtestnet.com");
+            vSeeds.emplace_back("liquid.network.");
         }
     }
 };
@@ -1140,6 +1145,7 @@ public:
 
         vSeeds.clear();
         vSeeds.emplace_back("seed.liquidnetwork.io");
+        vSeeds.emplace_back("liquid.network.");
         vFixedSeeds = std::vector<uint8_t>(std::begin(pnSeed6_liquidv1), std::end(pnSeed6_liquidv1));
 
         //
@@ -1306,7 +1312,7 @@ public:
 
         // Simplicity
         consensus.vDeployments[Consensus::DEPLOYMENT_SIMPLICITY].bit = 21;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SIMPLICITY].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE;
+        consensus.vDeployments[Consensus::DEPLOYMENT_SIMPLICITY].nStartTime = 3333333; // April 14, 2025
         consensus.vDeployments[Consensus::DEPLOYMENT_SIMPLICITY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_SIMPLICITY].min_activation_height = 0; // No activation delay
         consensus.vDeployments[Consensus::DEPLOYMENT_SIMPLICITY].nPeriod = 10080; // one week...
