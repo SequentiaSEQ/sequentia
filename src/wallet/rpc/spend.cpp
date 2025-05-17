@@ -1929,9 +1929,6 @@ RPCHelpMan createhtlc()
             CScriptID innerID(inner);
             ScriptHash scriptHash(innerID);
 
-            printf(" %x\n", Params().Base58Prefix(CChainParams::SCRIPT_ADDRESS)[0]);
-            std::cout << "Script: " << HexStr(inner) <<", Script hash: " << scriptHash.ToString() << std::endl;
-
             // Create Bitcoin address
             std::vector<unsigned char> data(21, Params().Base58Prefix(CChainParams::SCRIPT_ADDRESS)[0]);
             memcpy(&data[1], &innerID, 20);
