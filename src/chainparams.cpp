@@ -421,12 +421,12 @@ public:
         // nodes with support for servicebits filtering should be at the top
         vSeeds.emplace_back("testnet.sequentia.io");
 
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,52);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,193);
-        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,249);
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,111);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,196);
+        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,239);
         base58Prefixes[BLINDED_ADDRESS] = std::vector<unsigned char>(1, 70);
-        base58Prefixes[EXT_PUBLIC_KEY] = {0x15, 0xE6, 0xD2, 0x6B};
-        base58Prefixes[EXT_SECRET_KEY] = {0x33, 0x97, 0xC1, 0x9D};
+        base58Prefixes[EXT_PUBLIC_KEY] = {0x04, 0x35, 0x87, 0xCF};
+        base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
 
         bech32_hrp = "tb";
         blech32_hrp = bech32_hrp;
